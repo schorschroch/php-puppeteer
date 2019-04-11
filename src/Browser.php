@@ -5,15 +5,15 @@ class Browser
 {
     // Puppeteer configuration items
     private $config;
-    
+
     // parameters to run node command
     public $path;               // path
     public $nodePath;           // node path
     public $nodeBinary;
     public $executable;        // executable js to call ruppeteer api
-    
+
     public $isDebug;    // show detailed output from exec command
-    
+
     public function __construct()
     {
         $this->config = [];
@@ -21,20 +21,20 @@ class Browser
         $this->config['goto']['waitUntil'] = ['load', 'domcontentloaded', 'networkidle0', 'networkidle2'];
         $this->config['viewport']['width'] = 1024;
         $this->config['viewport']['height'] = 800;
-        
+
         $this->path = 'PATH=$PATH:/usr/local/bin';
         $this->nodePath = 'NODE_PATH=`npm root -g`';
         $this->nodeBinary = 'node';
         $this->executable = __DIR__.'/js/puppeteer-api.js';
-        
+
         $this->isDebug = false;
     }
-    
+
     /**
      * Generate PDF file based on configuration.
-     * 
+     *
      * @param array $config configuration for PDF generation, this will override default configuration.
-     * 
+     *
      * Sample $config
      * ```
      * $config = [
@@ -50,11 +50,11 @@ class Browser
      *      ]
      *  ];
      * ```
-     * 
+     *
      *  1. Must set either $config['url'] or $config['html'], if both, will pick up html.
-     *  2. If $config['pdf']['path'] is set, will generate PDF file to the specific path, 
+     *  2. If $config['pdf']['path'] is set, will generate PDF file to the specific path,
      *      otherwise, will return PDF data.
-     * 
+     *
      * @return mixed property value
      *  1. array $result when $config['pdf']['path'] is set or the `command` is not running successfully,
      *     $result includes output of command and a return value, you can use $result['returnVal'] to check restult,
@@ -74,15 +74,30 @@ class Browser
         // default PDF configuration
         $this->config['pdf']['format'] = 'A4';
         $this->config['pdf']['printBackground'] = true;
-        
+
         $this->config = self::merge($this->config, $config);
-        $fullCommand = $this->path.' ' .$this->nodePath.' ' .$this->nodeBinary.' '
-            .escapeshellarg($this->executable). ' ' .escapeshellarg(json_encode($this->config));
-            
+
+        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+            $fullCommand =
+                $this->nodeBinary.' '
+                .escapeshellarg($this->executable).' '
+                .'"'.str_replace('"', '\"', (json_encode($this->config))).'"';
+        } else {
+            $fullCommand = $this->path.' ' .$this->nodePath.' ' .$this->nodeBinary.' '
+                    .escapeshellarg($this->executable). ' '
+                    .escapeshellarg(json_encode($this->config));
+        }
         if ($this->isDebug) {
             $fullCommand .= " 2>&1";
         }
         exec($fullCommand, $output, $returnVal);
+        /*
+         * only Debug
+        var_dump($fullCommand);
+        var_dump($output);
+        var_dump($returnVal);
+         *
+         */
         $result = [
             'ouput' => $output,
             'returnVal' => $returnVal
@@ -92,10 +107,10 @@ class Browser
             unlink($this->config['pdf']['path']);
             return $data;
         }
-        
+
         return $result;
     }
-    
+
     private static function merge($a, $b)
     {
         $res = $a;
